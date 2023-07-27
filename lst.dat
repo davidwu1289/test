@@ -1,0 +1,21 @@
+xml_parts = new_nested_object.split("\n")  # Adjust this line if your XML parts are separated differently
+bucket = storage_client.get_bucket(path_args.output_bucket_loc)
+
+for part in xml_parts:
+    try:
+        parsed_object = xmltodict.parse(part)
+        recurse_nested(parsed_object, key, ids, lookup_data=lookup_data)
+    except xmltodict.expat.ExpatError as e:
+        # Perform record level DLP here, assuming deidentify_all_columns_deterministic is your DLP function
+        dlp_part = deidentify_all_columns_deterministic(path_args.project_id, part, fieldTranformationLst)
+        
+        # Prepare the path
+        timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')
+        year = timestamp[:4]
+        month = timestamp[4:6]
+        day = timestamp[6:8]
+        blob_name = f'bad_data/year={year}/month={month}/day={day}/{uniqueId}_{k}_{timestamp}.dat'
+        
+        # Create a new blob and upload the dlp_part
+        blob = bucket.blob(blob_name)
+        blob.upload_from_string(dlp_part)
