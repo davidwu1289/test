@@ -1,0 +1,140 @@
+public class Record {
+    private String cola;
+    private String colb;
+    // Add more fields based on your schema
+
+    // Getters and setters for the fields (omitted for brevity)
+}
+
+
+import java.io.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import java.util.*;
+
+public class DataProcessor {
+    // Other methods and constructor here...
+
+    public void printDataInJSONFormat(String dataFilePath) throws IOException {
+        try (BufferedReader br = new BufferedReader(new FileReader(dataFilePath))) {
+            String line;
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.enable(SerializationFeature.INDENT_OUTPUT);
+
+            while ((line = br.readLine()) != null) {
+                // Parse the line and convert it to a Record object
+                Record record = parseRecord(line);
+
+                // Convert the Record object to JSON format and print it
+                String json = mapper.writeValueAsString(record);
+                System.out.println(json);
+            }
+        }
+    }
+
+    // Other methods here...
+
+    // Helper method to parse a line and create a Record object
+    private Record parseRecord(String line) {
+        // Implement the logic to parse the line and create a Record object based on the schema
+        // For example, split the line by delimiters and assign values to each field of the Record object
+        Record record = new Record();
+        // Set values for the fields based on the schema
+        // record.setCola(...);
+        // record.setColb(...);
+        // ...
+
+        return record;
+    }
+}
+
+
+import java.io.*;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
+
+public class DataProcessor {
+    // Other methods and constructor here...
+
+    private static final String DATE_FORMAT = "CyyMMdd";
+    private static final String TIMESTAMP_FORMAT = "CCyyMMddHHmmssSSSSSS";
+
+    // Rest of the code including printDataInJSONFormat, readControlFile, validateDataFile, and splitDataIntoOutputFiles
+    // ...
+
+    // Helper method to parse a line and create a Record object
+    private Record parseRecord(String line) {
+        // Split the line by delimiters (assuming comma here) to get individual field values
+        String[] fields = line.split(",");
+
+        // Create a new Record object
+        Record record = new Record();
+
+        // Iterate over each field in the schema and set the values in the Record object
+        for (int i = 0; i < schema.size(); i++) {
+            FieldInfo fieldInfo = schema.get(i);
+            String fieldValue = fields[i].trim();
+
+            switch (fieldInfo.getType()) {
+                case "Numeric":
+                    // Remove leading zeros and parse as a long integer
+                    record.setValue(fieldInfo.getName(), Long.parseLong(fieldValue));
+                    break;
+                case "String":
+                    record.setValue(fieldInfo.getName(), fieldValue);
+                    break;
+                case "Date":
+                    // Parse the date using the specified format
+                    Date date = parseDate(fieldValue, DATE_FORMAT);
+                    record.setValue(fieldInfo.getName(), date);
+                    break;
+                case "Timestamp":
+                    // Parse the timestamp using the specified format
+                    Date timestamp = parseDate(fieldValue, TIMESTAMP_FORMAT);
+                    record.setValue(fieldInfo.getName(), timestamp);
+                    break;
+                default:
+                    // Handle other data types if needed
+                    break;
+            }
+        }
+
+        return record;
+    }
+
+    // Helper method to parse a date using the specified format
+    private Date parseDate(String dateString, String format) {
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat(format);
+            return sdf.parse(dateString);
+        } catch (ParseException e) {
+            // Handle parsing errors if needed
+            return null;
+        }
+    }
+
+    // Other helper methods here...
+}
+
+
+public class DataProcessor {
+    // Rest of the implementation...
+
+    public static void main(String[] args) {
+        // Provide the path to the sample data file
+        String dataFilePath = "path/to/sample_data_file.dat";
+
+        // Create an instance of DataProcessor
+        DataProcessor dataProcessor = new DataProcessor();
+
+        try {
+            // Call the method to print the data in JSON format
+            dataProcessor.printDataInJSONFormat(dataFilePath);
+        } catch (IOException e) {
+            // Handle any IOException that may occur during file processing
+            e.printStackTrace();
+        }
+    }
+}
+
