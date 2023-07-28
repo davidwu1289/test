@@ -1,0 +1,25 @@
+public void printData(String dataFilePath) throws IOException {
+        try (BufferedReader br = new BufferedReader(new FileReader(dataFilePath))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                // Parse the line and convert it to a Record object
+                Record record = parseRecord(line);
+
+                // Print the data in the desired format
+                printRecordData(record);
+            }
+        }
+    }
+
+    // Helper method to print data in the desired format
+    private void printRecordData(Record record) {
+        // Iterate over each field in the schema and print the field name and value
+        for (FieldInfo fieldInfo : schema) {
+            String fieldName = fieldInfo.getName();
+            Object fieldValue = record.getValue(fieldName);
+
+            System.out.println(fieldName + " --> " + fieldValue);
+        }
+
+        System.out.println(); // Print an empty line to separate records
+    }
