@@ -1,0 +1,3 @@
+private String getOutputFileName(String outputDir, int fileCount) {
+        return outputDir + File.separator + "output_" + fileCount + ".txt";
+    }
