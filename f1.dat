@@ -424,4 +424,95 @@ public class DataProcessorTest {
     }
 }
 
+private Map<String, Integer> readControlFile(String controlFilePath) throws IOException {
+        Map<String, Integer> controlMap = new HashMap<>();
+
+        try (BufferedReader br = new BufferedReader(new FileReader(controlFilePath))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length == 2) {
+                    String dataFile = parts[0].trim();
+                    int recordCount = Integer.parseInt(parts[1].trim());
+                    controlMap.put(dataFile, recordCount);
+                }
+            }
+        }
+
+        return controlMap;
+    }
+
+
+
+import java.io.*;
+import java.util.*;
+
+public class DataProcessor {
+    // Other methods and constructor here...
+
+    private void splitDataIntoOutputFiles(String dataFilePath, String outputDir, Integer linesPerFile, Integer sizePerFile) throws IOException {
+        try (BufferedReader br = new BufferedReader(new FileReader(dataFilePath))) {
+            String line;
+            int recordCount = 0;
+            int fileCount = 1;
+            long currentFileSize = 0;
+
+            // Create a new BufferedWriter for each output file
+            BufferedWriter bw = null;
+            String currentOutputFileName = getOutputFileName(outputDir, fileCount);
+
+            while ((line = br.readLine()) != null) {
+                // Process the line here...
+
+                // Calculate the size of the current line in bytes
+                byte[] lineBytes = line.getBytes();
+                long lineSize = lineBytes.length;
+
+                // Check if splitting is based on linesPerFile or sizePerFile
+                if (linesPerFile != null) {
+                    // Split based on linesPerFile
+                    if (recordCount % linesPerFile == 0) {
+                        // Close the previous BufferedWriter and create a new one for the next output file
+                        if (bw != null) {
+                            bw.close();
+                        }
+                        fileCount++;
+                        currentOutputFileName = getOutputFileName(outputDir, fileCount);
+                        bw = new BufferedWriter(new FileWriter(currentOutputFileName));
+                    }
+                } else if (sizePerFile != null) {
+                    // Split based on sizePerFile
+                    if (currentFileSize + lineSize > sizePerFile) {
+                        // Close the previous BufferedWriter and create a new one for the next output file
+                        if (bw != null) {
+                            bw.close();
+                        }
+                        fileCount++;
+                        currentOutputFileName = getOutputFileName(outputDir, fileCount);
+                        bw = new BufferedWriter(new FileWriter(currentOutputFileName));
+                        currentFileSize = 0;
+                    }
+                }
+
+                // Write the line to the current output file
+                if (bw == null) {
+                    bw = new BufferedWriter(new FileWriter(currentOutputFileName));
+                }
+                bw.write(line);
+                bw.newLine();
+
+                // Update the record count and current file size
+                recordCount++;
+                currentFileSize += lineSize;
+            }
+
+            // Close the last BufferedWriter
+            if (bw != null) {
+                bw.close();
+            }
+        }
+    }
+
+    // Other helper methods here...
+}
 
