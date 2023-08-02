@@ -1,3 +1,55 @@
-35114388870184975414tknZzrymNKTzaOhhqoUoedTdGKXybVPIXIuypeCjnHPkJyOFSeJGEGyLBCKPQwtrUhAiDnXxaRbQLGssBDfDaHFgHXyGhVyhPYCcpXWTyxHPhApjDifSlrSZbCjtQlWqTJbJ0230630lbxXu20221130174209440573RMNmq202208050029114406510230718mtqSS20230501083749440803IiEhw202301231335044408730230412Fyyqk20220903042620440996RZgJN202212260046354410620230329
-64670789922358087208xyoGHAETMcTsZieIDVWGoNnYWoJvIjrdXTqiSlFSUNYaDQIEegOKYRMTMaHKVFxIvvWBbbSjIbianEzDoMQiOYRUyqelKfsVtGbXjWlusWdSyrwrFUJwsrSYNIynCJJlYbCw0230423WjNbL20230719021420440591QgSYe202305100900524406970230227WvUfF20230101100349440816BeWcZ202303090520094408850230131pIfBO20221020032831441008OaWwy202212070959554410740230314
-91058991595597048920nQNAfhIHEoMqofzCcaCPDWuxtdxqbKizPBMCPoCCIZttFCJWIQLeLkinDCbYJJNANdIpaoWchtYGdCqGbLPURoQEuKtKjtFpYnqSIfQFfBcympZDNrEisAlGktrwzOizyTBV0230110vlImu20230531062443440603vfIby202301301802014407110230708pIcib20221105120207440826EHCXM202304211834404408950230621JlTyI20230624031731441018tNTrv202305161339314410840230506
+import pandas as pd
+import gcsfs
+
+def compare_gcs_dirs(dir1, dir2):
+    fs = gcsfs.GCSFileSystem()
+
+    # List the Parquet files in both directories
+    files1 = fs.glob(dir1 + '/*.parquet')
+    files2 = fs.glob(dir2 + '/*.parquet')
+
+    # Make sure the directories contain the same number of files
+    assert len(files1) == len(files2)
+
+    # Compare the data in each pair of corresponding files
+    for file1, file2 in zip(files1, files2):
+        df1 = pd.read_parquet('gcs://' + file1)
+        df2 = pd.read_parquet('gcs://' + file2)
+
+        # Compare the dataframes
+        assert df1.equals(df2)
+
+# Use the function to compare two GCS directories
+compare_gcs_dirs('gs://test1/folder1', 'gs://test1/folder2')
+
+
+pip install gcsfs pandas
+
+
+def handle_bad_data(new_nested_object, path_args, key_name, wrapped_key):
+    # Add the logic to handle bad data here
+    # For example, save the bad data to a different location
+
+    columnName = "record"
+    surrogate_type = columnName.upper()
+
+    print(str(new_nested_object))
+    table_item = {"table": {"headers": [{"name": columnName}], "rows": [{"values": [{"string_value": new_nested_object}]}]}}
+
+    element = error_records_dlp(path_args.project_id, table_item, columnName, surrogate_type, key_name, wrapped_key)
+
+    # Prepare the path
+    source_time_stamp = get_jedi_file_timestamp()
+    file_name = path_args.dec_file_name
+    file_name_mod = str(file_name).replace('.txt','')
+    srcTimestamp = datetime.datetime.strptime(source_time_stamp, '%Y%m%d%H%M%S%f')
+    year = str(srcTimestamp.year)
+    month = '{:02d}'.format(srcTimestamp.month)
+    day = '{:02d}'.format(srcTimestamp.day)
+
+    blob_name = f'bad_data/year={year}/month={month}/day={day}/{file_name_mod}.log'
+
+    # Create a new blob and upload the dlp_part
+    blob = bucket.blob(blob_name)
+    blob.upload_from_string(element)
+
