@@ -1,0 +1,137 @@
+import org.springframework.batch.core.*;
+import org.springframework.batch.core.configuration.annotation.*;
+import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.batch.core.launch.support.RunIdIncrementer;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+@EnableBatchProcessing
+public class BatchConfig {
+
+    @Autowired
+    private JobLauncher jobLauncher;
+
+    @Autowired
+    private MyRecordRepository myRecordRepository;
+
+    // ... (other code remains the same)
+
+    @Bean
+    public Job dataValidationJob(JobBuilderFactory jobBuilderFactory, Step validationStep) {
+        return jobBuilderFactory.get("dataValidationJob")
+                .incrementer(new RunIdIncrementer())
+                .flow(validationStep)
+                .end()
+                .build();
+    }
+
+    @Bean
+    public Step validationStep(StepBuilderFactory stepBuilderFactory) {
+        return stepBuilderFactory.get("validationStep")
+                .tasklet((contribution, chunkContext) -> {
+                    int expectedRecordCount = new DataProcessor(null).readControlFile(controlFilePath);
+                    long actualRecordCount = myRecordRepository.count();
+                    if (expectedRecordCount != actualRecordCount) {
+                        throw new IllegalStateException("Data validation failed. Expected: " + expectedRecordCount + ", Actual: " + actualRecordCount);
+                    }
+                    return RepeatStatus.FINISHED;
+                }).build();
+    }
+
+    @Bean
+    public JobExecutionListener listener(Job dataValidationJob) {
+        return new JobExecutionListener() {
+            @Override
+            public void beforeJob(JobExecution jobExecution) {
+                // Do nothing
+            }
+
+            @Override
+            public void afterJob(JobExecution jobExecution) {
+                if (jobExecution.getStatus() == BatchStatus.COMPLETED) {
+                    jobLauncher.run(dataValidationJob, new JobParameters());
+                }
+            }
+        };
+    }
+}
+
+
+import org.springframework.batch.core.*;
+import org.springframework.batch.core.configuration.annotation.*;
+import org.springframework.batch.core.launch.support.RunIdIncrementer;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+@EnableBatchProcessing
+public class BatchConfig {
+
+    @Value("${data.file.path}")
+    private String dataFilePath;
+
+    @Value("${control.file.path}")
+    private String controlFilePath;
+
+    @Value("${output.dir}")
+    private String outputDir;
+
+    @Value("${lines.per.file}")
+    private Integer linesPerFile;
+
+    @Bean
+    public Job dataProcessingJob(JobBuilderFactory jobBuilderFactory, Step step) {
+        return jobBuilderFactory.get("dataProcessingJob")
+                .incrementer(new RunIdIncrementer())
+                .flow(step)
+                .end()
+                .build();
+    }
+
+    @Bean
+    public Step step(StepBuilderFactory stepBuilderFactory, DataProcessor dataProcessor) {
+        return stepBuilderFactory.get("step")
+                .tasklet((contribution, chunkContext) -> {
+                    dataProcessor.processDataFile(dataFilePath, controlFilePath, outputDir, linesPerFile, null);
+                    return RepeatStatus.FINISHED;
+                }).build();
+    }
+
+    @Bean
+    public DataProcessor dataProcessor() {
+        // Define the schema
+        List<FieldInfo> schema = Arrays.asList(
+                new FieldInfo("WS-CIF-CUST NO", "Numeric", 15),
+                new FieldInfo("WS-XCM-COID-N", "Numeric", 5)
+                // ... Add the rest of the fields from your schema here ...
+        );
+        return new DataProcessor(schema);
+    }
+}
+
+
+
+spring.data.mongodb.uri=mongodb://localhost:27017/mydatabase
+
+
+
+@Bean
+public Job dataProcessingJob(JobBuilderFactory jobBuilderFactory, Step step, JobExecutionListener listener) {
+    return jobBuilderFactory.get("dataProcessingJob")
+            .incrementer(new RunIdIncrementer())
+            .listener(listener)
+            .flow(step)
+            .end()
+            .build();
+}
+
+
+import org.springframework.data.mongodb.repository.MongoRepository;
+
+public interface MyRecordRepository extends MongoRepository<MyRecord, String> {
+}
+
