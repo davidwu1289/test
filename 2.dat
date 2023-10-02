@@ -1,0 +1,31 @@
+@SpringBootApplication
+public class DataMigrationApplication {
+    public static void main(String[] args) {
+        ConfigurableApplicationContext context = SpringApplication.run(DataMigrationApplication.class, args);
+        
+        JobLauncher jobLauncher = context.getBean(JobLauncher.class);
+        Job dataProcessingJob = context.getBean("DataProcessingJob", Job.class);
+        Job oneTimeLoadJob = context.getBean("oneTimeLoad", Job.class);
+
+        // Use an argument or property to decide if validation should be skipped
+        boolean skipValidation = Boolean.parseBoolean(System.getProperty("skipValidation", "false"));
+
+        try {
+            if (!skipValidation) {
+                JobExecution execution = jobLauncher.run(dataProcessingJob, new JobParameters());
+
+                // If DataProcessingJob is successful, then run the next job
+                if (ExitStatus.COMPLETED.equals(execution.getExitStatus())) {
+                    jobLauncher.run(oneTimeLoadJob, new JobParameters());
+                }
+            } else {
+                // Skip validation and directly run the oneTimeLoad job
+                jobLauncher.run(oneTimeLoadJob, new JobParameters());
+            }
+        } catch (Exception e) {
+            // Log or handle exceptions appropriately
+            e.printStackTrace();
+        }
+    }
+}
+
