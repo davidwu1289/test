@@ -1,0 +1,71 @@
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import org.bson.Document;
+import org.springframework.batch.core.StepContribution;
+import org.springframework.batch.core.scope.context.ChunkContext;
+import org.springframework.batch.repeat.RepeatStatus;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
+import org.springframework.data.mongodb.core.aggregation.AggregationOptions;
+import org.springframework.data.mongodb.core.aggregation.AggregationResults;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+
+import java.util.List;
+import java.util.concurrent.Future;
+
+import static org.springframework.data.mongodb.core.aggregation.Aggregation.newAggregation;
+import static org.springframework.data.mongodb.core.aggregation.Aggregation.out;
+
+@Slf4j
+@Data
+public class InitialLoadAggregatorTasklet implements Tasklet {
+
+    @Autowired
+    private MongoTemplate mongoTemplate;
+    @Autowired
+    private ApplicationConfiguration configuration;
+
+    private final int batchSize = 10000; // Define an appropriate batch size
+
+    @Override
+    public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) {
+        long totalRecords = mongoTemplate.getCollection(configuration.getMongoCollectionStagingTableView()).countDocuments();
+        long processedRecords = 0;
+
+        ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
+        taskExecutor.setCorePoolSize(5);
+        taskExecutor.setMaxPoolSize(10);
+        taskExecutor.initialize();
+
+        while (processedRecords < totalRecords) {
+            Query query = new Query();
+            query.skip((int) processedRecords);
+            query.limit(batchSize);
+
+            List<Document> records = mongoTemplate.find(query, Document.class, configuration.getMongoCollectionStagingTableView());
+
+            Future<?> future = taskExecutor.submit(() -> {
+                // Aggregation logic remains the same
+                OutOperation outOperation = out(configuration.getMongoCollectionTargetTable());
+                Aggregation aggregation = newAggregation(outOperation);
+                AggregationOptions options = AggregationOptions.builder().allowDiskUse(true).cursorBatchSize(5000).build();
+                mongoTemplate.aggregate(aggregation.withOptions(options), configuration.getMongoCollectionStagingTableView(), Document.class);
+            });
+
+            try {
+                future.get(); // Wait for the task to complete
+            } catch (Exception e) {
+                log.error("An error occurred during batch processing: ", e);
+            }
+
+            processedRecords += records.size();
+        }
+
+        taskExecutor.shutdown();
+
+        return RepeatStatus.FINISHED;
+    }
+}
+
