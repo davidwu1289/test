@@ -1,0 +1,86 @@
+final int recordLengthWithNewLine = 195 + System.lineSeparator().length(); // Record length plus newline
+        int actualRecordCount = (int) (fileSize / recordLengthWithNewLine);
+
+        double percentageDifference = Math.abs(((double) actualRecordCount - (double) expectedRecordCount) / (double) expectedRecordCount) * 100;
+        
+        if (percentageDifference > 10) {
+            throw new IllegalStateException("Data file contains " + actualRecordCount +
+                    " records, but the control file specifies " + expectedRecordCount + " records. The difference exceeds 10%.");
+        }
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import java.io.*;
+import java.nio.file.*;
+
+public class YourClass {
+    
+    private static final Logger logger = LoggerFactory.getLogger(YourClass.class);
+
+    private void splitDataIntoOutputFiles(String dataFilePath, String outputDir, Integer linesPerFile, Integer sizePerFile) throws IOException {
+        logger.info("Starting to split data into output files.");
+        
+        int fileCounter = 1;
+        int lineCounter = 0;
+        long currentFileSize = 0;
+        String currentOutputFileName = outputDir + File.separator + "output" + fileCounter + ".dat";
+        BufferedWriter bw = null;
+        
+        try (BufferedReader br = Files.newBufferedReader(Paths.get(dataFilePath))) {
+            logger.info("Successfully opened the data file: {}", dataFilePath);
+
+            bw = new BufferedWriter(new FileWriter(currentOutputFileName));
+            logger.info("Successfully created the output file: {}", currentOutputFileName);
+            
+            String line;
+            while ((line = br.readLine()) != null) {
+                try {
+                    bw.write(line);
+                    bw.newLine();
+
+                    lineCounter++;
+                    currentFileSize += line.length() + 1;  // Add 1 for the new line character
+
+                    if ((linesPerFile != null && lineCounter >= linesPerFile) || (sizePerFile != null && currentFileSize >= sizePerFile)) {
+                        bw.flush();
+                        logger.info("Successfully flushed the output file: {}", currentOutputFileName);
+
+                        bw.close();
+                        logger.info("Successfully closed the output file: {}", currentOutputFileName);
+
+                        fileCounter++;
+                        lineCounter = 0;
+                        currentFileSize = 0;
+                        
+                        currentOutputFileName = outputDir + File.separator + "output" + fileCounter + ".dat";
+                        bw = new BufferedWriter(new FileWriter(currentOutputFileName));
+                        logger.info("Successfully created a new output file: {}", currentOutputFileName);
+                    }
+                } catch (IOException e) {
+                    logger.error("Failed to write to the output file: {}", currentOutputFileName);
+                    throw new IOException("Error writing to output file: " + currentOutputFileName, e);
+                }
+            }
+
+            bw.flush();
+            logger.info("Successfully flushed the last output file: {}", currentOutputFileName);
+            
+        } catch (IOException e) {
+            logger.error("Failed to read the input file or to write to the output file.");
+            throw new IOException("Error reading the input file: " + dataFilePath, e);
+        } finally {
+            if (bw != null) {
+                try {
+                    bw.close();
+                    logger.info("Successfully closed the last BufferedWriter.");
+                } catch (IOException e) {
+                    logger.error("Failed to close the BufferedWriter.");
+                    throw new IOException("Error closing the BufferedWriter", e);
+                }
+            }
+        }
+    }
+
+    // Add your main method or other methods here
+}
+
