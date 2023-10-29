@@ -1,0 +1,66 @@
+ @Bean
+    public Step truncateStageCollectionStep() {
+        return stepBuilderFactory.get("truncateStageCollectionStep").tasklet((stepContribution, chunkContext) -> {
+            mongoTemplate.remove(new Query(), "stageCollectionName");
+            return RepeatStatus.FINISHED;
+        }).build();
+    }
+
+    @Bean
+    public Step truncateTargetCollectionStep() {
+        return stepBuilderFactory.get("truncateTargetCollectionStep").tasklet((stepContribution, chunkContext) -> {
+            mongoTemplate.remove(new Query(), "targetCollectionName");
+            return RepeatStatus.FINISHED;
+        }).build();
+    }
+
+
+
+private void splitDataIntoOutputFiles(String dataFilePath, String outputDir, Integer linesPerFile, Integer sizePerFile) throws IOException {
+    int fileCounter = 1;
+    int lineCounter = 0;
+    long currentFileSize = 0;
+    String currentOutputFileName = outputDir + File.separator + "output" + fileCounter + ".dat";
+    BufferedWriter bw = null;
+
+    try (BufferedReader br = Files.newBufferedReader(Paths.get(dataFilePath))) {
+        String line;
+        bw = new BufferedWriter(new FileWriter(currentOutputFileName));
+        while ((line = br.readLine()) != null) {
+            try {
+                bw.write(line);
+                bw.newLine();
+
+                lineCounter++;
+                currentFileSize += line.length() + 1; // Add 1 for the new line character
+
+                if ((linesPerFile != null && lineCounter >= linesPerFile) || (sizePerFile != null && currentFileSize >= sizePerFile)) {
+                    bw.flush();
+                    bw.close();
+
+                    fileCounter++;
+                    lineCounter = 0;
+                    currentFileSize = 0;
+                    currentOutputFileName = outputDir + File.separator + "output" + fileCounter + ".dat";
+                    bw = new BufferedWriter(new FileWriter(currentOutputFileName));
+                }
+            } catch (IOException e) {
+                throw new IOException("Error writing to output file: " + currentOutputFileName, e);
+            }
+        }
+        bw.flush();
+    } catch (IOException e) {
+        throw new IOException("Error reading the input file: " + dataFilePath, e);
+    } finally {
+        if (bw != null) {
+            try {
+                bw.close();
+            } catch (IOException e) {
+                throw new IOException("Error closing the BufferedWriter", e);
+            }
+        }
+    }
+}
+
+
+
