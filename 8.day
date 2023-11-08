@@ -1,0 +1,54 @@
+Design Document for Control File Count Tracking and Validation
+Overview
+This document outlines the design for a system to track and validate the record counts extracted from control files in data processing applications. The system will compare the record count from the current execution's control file with the count from the most recent execution stored in a MongoDB collection. The validation step ensures that the count has not changed beyond an acceptable threshold, which is set at 10%.
+
+System Design
+Components
+DataProcessor: A class responsible for the main data processing logic, including reading control files and validating record counts.
+ControlFileCount: A class representing the schema for counts stored in MongoDB.
+MongoDB Collection: A persistent storage for holding the record counts from each execution.
+MongoDB Collection Schema
+Collection Name: control_file_counts
+Document Example:
+json
+Copy code
+{
+  "date": "20231015",
+  "count": 150
+}
+Process Flow
+Start Execution: The DataProcessor begins the processing of the data file.
+Read Control File: The current execution's record count is read from the control file.
+Fetch Previous Execution Count: The most recent count is retrieved from the MongoDB collection.
+Compare Counts: The current and previous counts are compared to ensure the difference is within 10%.
+Store Current Count: If validation passes, the current count is stored in MongoDB for future comparisons.
+Example Scenario
+Previous Execution:
+
+Date: October 15, 2023
+Record Count: 150
+MongoDB Document: { "date": "20231015", "count": 150 }
+Current Execution:
+
+Date: October 22, 2023
+Record Count: 162
+Acceptable Range: 135 - 165 (10% difference from the previous count of 150)
+Validation: Passes, as 162 is within the acceptable range.
+Validation Logic
+If the previous count is 150 and the current count is 162, the difference is 12.
+The percentage change is (12/150) * 100 = 8%, which is within the 10% threshold.
+Since the change is below the threshold, the system proceeds with the workflow.
+Persistence Logic
+After successful validation, the current execution count is persisted as a new document in the MongoDB collection:
+json
+Copy code
+{
+  "date": "20231022",
+  "count": 162
+}
+Error Handling and Alerts
+If no previous execution count is found, the system will log a warning but proceed with the current execution.
+If the count difference exceeds 10%, an error is logged, and an IllegalStateException is thrown.
+The system can be configured to alert administrators when such discrepancies occur.
+Conclusion
+The design ensures that any significant deviation in the number of records processed triggers an alert, thus maintaining the integrity of the data processing workflow. This system allows for an auditable history of record counts and ensures consistency across data processing executions.
