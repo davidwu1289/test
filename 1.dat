@@ -1,0 +1,110 @@
+ 
+
+
+public class DataProcessor {
+    // ... (other parts of the DataProcessor class)
+
+    // Updated method to read the control file based on a pattern and date
+    public int readControlFile(String controlFilePattern) throws IOException {
+        // Format the pattern with today's date
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd");
+        String date = dateFormat.format(new Date());
+        String controlFileName = controlFilePattern.replace("*", date);
+
+        // Find the control file for today based on the pattern
+        File dir = new File(controlFilePattern).getParentFile();
+        File[] files = dir.listFiles((d, name) -> name.equals(controlFileName + ".ctl"));
+        if (files == null || files.length != 1) {
+            throw new IOException("Expected one control file for pattern: " + controlFileName);
+        }
+        String controlFilePath = files[0].getAbsolutePath();
+
+        // Read the expected record count from the control file
+        int recordCount = 0;
+        try (BufferedReader br = new BufferedReader(new FileReader(controlFilePath))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.split("\\|");
+                if (parts.length == 3) {
+                    recordCount = Integer.parseInt(parts[1].trim());
+                    break;
+                }
+            }
+        }
+        log.info("Done reading from control file: " + controlFilePath);
+        return recordCount;
+    }
+
+    // ... (rest of the DataProcessor class)
+}
+
+
+
+
+public class DataProcessor {
+    private final List<FieldInfo> schema;
+    private final DataValidator dataValidator;
+
+    public DataProcessor(List<FieldInfo> schema) {
+        this.schema = schema;
+        this.dataValidator = new DataValidator(schema);
+    }
+
+    // Helper method to get today's date as a string
+    private String getTodayDateString() {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd");
+        return dateFormat.format(new Date());
+    }
+
+    // Function to process the data file, validate records, and split into output files
+    public void processDataFile(String dataFilePattern, String controlFilePath, String outputDir,
+                                Integer linesPerFile, Integer sizePerFile) throws IOException {
+        // Format the pattern with today's date
+        String todayDateStr = getTodayDateString();
+        String todayDataFilePattern = dataFilePattern.replace("*", todayDateStr);
+
+        // Find the data file for today based on the pattern
+        File dir = new File(dataFilePattern).getParentFile();
+        File[] files = dir.listFiles((d, name) -> name.equals(todayDataFilePattern));
+        if (files == null || files.length != 1) {
+            throw new IOException("Expected one data file for pattern: " + todayDataFilePattern);
+        }
+        String dataFilePath = files[0].getAbsolutePath();
+
+        // Read the control file to get the expected record count
+        int expectedRecordCount = readControlFile(controlFilePath);
+
+        // Get the actual record count
+        long fileSize = files[0].length();
+        final int recordLengthWithNewLine = 195 + System.lineSeparator().length(); // Record length plus newline
+        int actualRecordCount = (int) (fileSize / recordLengthWithNewLine);
+
+        // Check if the number of records in the data file matches the count mentioned in the control file
+        if (expectedRecordCount != actualRecordCount) {
+            throw new IllegalStateException("Data file contains " + actualRecordCount +
+                    " records, but the control file specifies " + expectedRecordCount + " records.");
+        }
+
+        // Process the data file
+        try (Stream<String> lines = Files.lines(Paths.get(dataFilePath))) {
+            lines.forEach(line -> processAndValidateRecord(line));
+        }
+
+        // Split the data into output files based on the provided options
+        splitDataIntoOutputFiles(dataFilePath, outputDir, linesPerFile, sizePerFile);
+    }
+
+    private int readControlFile(String controlFilePath) {
+        // Your implementation to read the control file and return the expected record count
+        return 0; // Placeholder return
+    }
+
+    private void processAndValidateRecord(String line) {
+        // Your implementation to process and validate each record
+    }
+
+    private void splitDataIntoOutputFiles(String dataFilePath, String outputDir, Integer linesPerFile, Integer sizePerFile) {
+        // Your implementation to split the data into output files
+    }
+}
+
