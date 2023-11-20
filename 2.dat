@@ -1,0 +1,68 @@
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.List;
+
+@Component
+public class DataValidator {
+    private final List<FieldInfo> schema;
+    private final List<String> badRecords = new ArrayList<>();
+    private final String badRecordsFilePath = "/path/to/bad_records.txt"; // Set the path to your bad records file
+
+    public DataValidator(List<FieldInfo> schema) {
+        this.schema = schema;
+    }
+
+    // Function to validate an individual record
+    public boolean validateRecord(String record) {
+        int position = 0;
+        boolean isRecordValid = true;
+
+        for (FieldInfo field : schema) {
+            String fieldValue = record.substring(position, position + field.getLength());
+
+            if (fieldValue == null || fieldValue.trim().isEmpty()) {
+                isRecordValid = false;
+                // Record the bad record and continue with the next one
+                badRecords.add(record);
+                break;
+            }
+
+            // Check the field length
+            if (fieldValue.length() != field.getLength()) {
+                log.error("Field {} in record {} has incorrect length.", field.getName(), record);
+                isRecordValid = false;
+                // Record the bad record and continue with the next one
+                badRecords.add(record);
+                break;
+            }
+
+            // The rest of your validation logic remains unchanged...
+
+            position += field.getLength();
+        }
+
+        return isRecordValid;
+    }
+
+    // Function to write bad records to a file
+    private void writeBadRecordsToFile() {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(badRecordsFilePath, true))) {
+            for (String badRecord : badRecords) {
+                writer.write(badRecord);
+                writer.newLine();
+            }
+        } catch (IOException e) {
+            log.error("Error writing bad records to file", e);
+        }
+    }
+
+    // Call this method at the end of your record processing
+    public void finalizeValidation() {
+        writeBadRecordsToFile();
+    }
+}
+
